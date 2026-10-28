@@ -24,6 +24,8 @@ local.properties
 *.apk
 *.aar
 !apps/android-observer-app/youpi-sms-gateway.apk
+assets/*.mp4
+assets/*.webm
 
 # Environment and Secrets
 .env

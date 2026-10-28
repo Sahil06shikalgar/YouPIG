@@ -9,6 +9,9 @@ services:
     healthCheckPath: /health
 
     envVars:
+      - key: GIT_LFS_SKIP_SMUDGE
+        value: "1"
+
       - key: NODE_VERSION
         value: 24.22.1
 
