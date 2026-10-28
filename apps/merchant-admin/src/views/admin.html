@@ -266,9 +266,8 @@
       justify-content: space-between;
       gap: 1rem;
       flex-wrap: wrap;
-      position: sticky;
-      top: 0;
-      z-index: 1000;
+      position: relative;
+      z-index: 100;
     }
 
     header .badge-info,
@@ -398,7 +397,7 @@
       padding: 0 1.75rem;
       overflow-x: auto;
       position: sticky;
-      top: 60px;
+      top: 0;
       z-index: 999;
     }
 
@@ -417,6 +416,11 @@
       display: flex;
       align-items: center;
       gap: 0.55rem;
+    }
+
+    .main-nav-btn > *,
+    .sub-nav-pill > * {
+      pointer-events: none;
     }
 
     .main-nav-btn:hover {
@@ -1227,7 +1231,7 @@
 
       <!-- Active VPA Display -->
       <span class="badge badge-info" id="accountVpaDisplay" style="cursor:pointer;"
-        onclick="switchSection('storeSettings', 'subTabVpa')">
+        onclick="switchSection('storeSettings', 'subViewStoreVpa')">
         VPA: Loading...
       </span>
 
@@ -1250,19 +1254,19 @@
 
   <!-- MAIN NAVIGATION BAR: 3 HIGH-LEVEL SECTIONS -->
   <nav class="main-nav-bar">
-    <button class="main-nav-btn active" id="mainNavOperations" onclick="switchSection('operations')">
+    <button type="button" class="main-nav-btn active" id="mainNavOperations" onclick="switchSection('operations')">
       <span>🏪</span>
       <span>Daily Merchant Operations</span>
     </button>
-    <button class="main-nav-btn" id="mainNavStoreSettings" onclick="switchSection('storeSettings')">
+    <button type="button" class="main-nav-btn" id="mainNavStoreSettings" onclick="switchSection('storeSettings')">
       <span>⚙️</span>
       <span>Store Settings</span>
     </button>
-    <button class="main-nav-btn" id="mainNavDeveloperHub" onclick="switchSection('developerHub')">
+    <button type="button" class="main-nav-btn" id="mainNavDeveloperHub" onclick="switchSection('developerHub')">
       <span>🛠️</span>
       <span>Developer &amp; Infrastructure Hub</span>
     </button>
-    <button class="main-nav-btn" id="mainNavSecurity" onclick="switchSection('security')">
+    <button type="button" class="main-nav-btn" id="mainNavSecurity" onclick="switchSection('security')">
       <span>🛡️</span>
       <span>Security</span>
     </button>
@@ -1511,7 +1515,7 @@
             <div style="display:flex; gap:0.5rem;">
               <a class="btn btn-success" href="/youpi-sms-gateway.apk" download="youpi-sms-gateway.apk">📲 Download
                 Companion APK</a>
-              <button class="btn btn-secondary" onclick="switchSection('developerHub', 'subTabAndroid')">Configure
+              <button class="btn btn-secondary" onclick="switchSection('developerHub', 'subViewDevAndroid')">Configure
                 Pairing ↗</button>
             </div>
           </div>
@@ -1532,7 +1536,7 @@
                 immunity.
               </div>
             </div>
-            <button class="btn btn-primary" onclick="switchSection('developerHub', 'subTabGmail')">Configure Gmail API
+            <button class="btn btn-primary" onclick="switchSection('developerHub', 'subViewDevProtocols')">Configure Gmail API
               ↗</button>
           </div>
         </div>
@@ -3951,6 +3955,7 @@
 
     // --- NAVIGATION CONTROLLER: 3 HIGH-LEVEL SECTIONS ---
     function switchSection(sectionId, targetSubTab = null) {
+      if (!sectionId) sectionId = 'operations';
       activeSection = sectionId;
 
       // Sync URL hash without jumping
@@ -3964,16 +3969,28 @@
 
       // Update main nav buttons
       document.querySelectorAll('.main-nav-btn').forEach(b => b.classList.remove('active'));
-      if (sectionId === 'operations') document.getElementById('mainNavOperations').classList.add('active');
-      if (sectionId === 'storeSettings') document.getElementById('mainNavStoreSettings').classList.add('active');
-      if (sectionId === 'developerHub') document.getElementById('mainNavDeveloperHub').classList.add('active');
-      if (sectionId === 'security') document.getElementById('mainNavSecurity').classList.add('active');
+      const navBtnMap = {
+        operations: 'mainNavOperations',
+        storeSettings: 'mainNavStoreSettings',
+        developerHub: 'mainNavDeveloperHub',
+        security: 'mainNavSecurity'
+      };
+      const activeBtn = document.getElementById(navBtnMap[sectionId]);
+      if (activeBtn) activeBtn.classList.add('active');
 
       // Show/hide sections
-      document.getElementById('sectionOperations').hidden = (sectionId !== 'operations');
-      document.getElementById('sectionStoreSettings').hidden = (sectionId !== 'storeSettings');
-      document.getElementById('sectionDeveloperHub').hidden = (sectionId !== 'developerHub');
-      document.getElementById('sectionSecurity').hidden = (sectionId !== 'security');
+      const secOperations = document.getElementById('sectionOperations');
+      const secStoreSettings = document.getElementById('sectionStoreSettings');
+      const secDeveloperHub = document.getElementById('sectionDeveloperHub');
+      const secSecurity = document.getElementById('sectionSecurity');
+
+      if (secOperations) secOperations.hidden = (sectionId !== 'operations');
+      if (secStoreSettings) secStoreSettings.hidden = (sectionId !== 'storeSettings');
+      if (secDeveloperHub) secDeveloperHub.hidden = (sectionId !== 'developerHub');
+      if (secSecurity) secSecurity.hidden = (sectionId !== 'security');
+
+      // Scroll smoothly to top of view
+      try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { window.scrollTo(0, 0); }
 
       // Render sub-navigation bar
       renderSubNavBar(sectionId, targetSubTab);
@@ -3982,7 +3999,7 @@
       if (sectionId === 'operations') {
         fetchLiveData();
       } else if (sectionId === 'storeSettings') {
-        if (!settingsLoaded) fetchGatewaySettings();
+        fetchGatewaySettings();
       } else if (sectionId === 'developerHub') {
         loadServices();
         connectServicesLogsSse();
@@ -3994,7 +4011,24 @@
 
     function renderSubNavBar(sectionId, targetSubTab = null) {
       const subNav = document.getElementById('subNavBar');
+      if (!subNav) return;
       subNav.innerHTML = '';
+
+      // Normalize any alias sub-tab IDs
+      const subTabAliases = {
+        'subTabVpa': 'subViewStoreVpa',
+        'subTabBrand': 'subViewStoreBrand',
+        'subTabModes': 'subViewStoreModes',
+        'subTabAndroid': 'subViewDevAndroid',
+        'subTabGmail': 'subViewDevProtocols',
+        'subTabProtocols': 'subViewDevProtocols',
+        'subTabCloudflare': 'subViewDevCloudflare',
+        'subTabSupervisor': 'subViewDevSupervisor',
+        'subTabSimulator': 'subViewDevSimulator'
+      };
+      if (targetSubTab && subTabAliases[targetSubTab]) {
+        targetSubTab = subTabAliases[targetSubTab];
+      }
 
       let items = [];
       if (sectionId === 'operations') {
@@ -4027,25 +4061,30 @@
         ];
       }
 
-      let defaultSub = targetSubTab || items[0].id;
+      const defaultSub = (targetSubTab && items.some(i => i.id === targetSubTab)) ? targetSubTab : (items[0] ? items[0].id : null);
       items.forEach(item => {
         const btn = document.createElement('button');
+        btn.type = 'button';
         btn.className = `sub-nav-pill ${item.id === defaultSub ? 'active' : ''}`;
+        btn.dataset.subview = item.id;
+        btn.setAttribute('data-subview', item.id);
         btn.textContent = item.label;
         btn.onclick = () => switchSubView(sectionId, item.id);
         subNav.appendChild(btn);
       });
 
-      switchSubView(sectionId, defaultSub);
+      if (defaultSub) {
+        switchSubView(sectionId, defaultSub);
+      }
     }
 
     function switchSubView(sectionId, subViewId) {
       activeSubTab = subViewId;
 
-      // Update pill styles
+      // Update pill styles cleanly
       document.querySelectorAll('.sub-nav-pill').forEach(p => {
-        p.classList.remove('active');
-        if (p.onclick.toString().includes(subViewId)) p.classList.add('active');
+        const matches = (p.dataset.subview === subViewId || p.getAttribute('data-subview') === subViewId);
+        p.classList.toggle('active', matches);
       });
 
       // Hide all sub-views in current section and show target
@@ -4054,12 +4093,18 @@
           sectionId === 'storeSettings' ? 'sectionStoreSettings' :
             sectionId === 'developerHub' ? 'sectionDeveloperHub' : 'sectionSecurity'
       );
-      Array.from(parent.children).forEach(child => {
-        if (child.id && child.id.startsWith('subView')) {
-          child.hidden = (child.id !== subViewId);
-        }
-      });
+      if (parent) {
+        Array.from(parent.children).forEach(child => {
+          if (child.id && child.id.startsWith('subView')) {
+            child.hidden = (child.id !== subViewId);
+          }
+        });
+      }
 
+      if (subViewId === 'subViewStoreBrand') {
+        updateLiveWhiteLabelPreview();
+        renderMerchantCredentials();
+      }
       if (subViewId === 'subViewDevSimulator') {
         initPaymentSimulator();
       }
@@ -4085,6 +4130,9 @@
       if (subViewId === 'subViewSecEvents') fetchSecurityEvents();
       if (subViewId === 'subViewSecHistory') fetchSecurityHistory();
     }
+
+    window.switchSection = switchSection;
+    window.switchSubView = switchSubView;
 
     // --- MERGED CONTROL CENTER & SYSTEM SUPERVISOR ---
     async function loadServices() {
@@ -4814,18 +4862,18 @@
     }
 
     function updateLiveWhiteLabelPreview() {
-      const bName = document.getElementById('settingBusinessName')?.value.trim() || 'Merchant Checkout';
-      const appName = document.getElementById('settingAppName')?.value.trim() || '{{APP_NAME}}' || 'YOUPI PG';
-      const logoUrl = document.getElementById('settingLogoUrl')?.value.trim() || '';
-      const primaryColor = document.getElementById('settingPrimaryColor')?.value.trim() || '#0b63e5';
+      const bName = (document.getElementById('settingBusinessName')?.value || '').trim() || 'Merchant Checkout';
+      const appName = (document.getElementById('settingAppName')?.value || '').trim() || '{{APP_NAME}}' || 'YOUPI PG';
+      const logoUrl = (document.getElementById('settingLogoUrl')?.value || '').trim() || '';
+      const primaryColor = (document.getElementById('settingPrimaryColor')?.value || '').trim() || '#0b63e5';
       const headerTheme = document.getElementById('settingHeaderTheme')?.value || 'gradient';
-      const trustBadgeText = document.getElementById('settingTrustBadgeText')?.value.trim();
+      const trustBadgeText = (document.getElementById('settingTrustBadgeText')?.value || '').trim();
       const hideTrustBadge = document.getElementById('settingHideTrustBadge')?.checked;
-      const subbannerText = document.getElementById('settingSubbannerText')?.value.trim();
+      const subbannerText = (document.getElementById('settingSubbannerText')?.value || '').trim();
       const hideSubbanner = document.getElementById('settingHideSubbanner')?.checked;
       const hideTimeSavingBanner = document.getElementById('settingHideTimeSavingBanner')?.checked;
       const hidePoweredBy = document.getElementById('settingHidePoweredBy')?.checked;
-      const footerGuarantee = document.getElementById('settingFooterGuarantee')?.value.trim();
+      const footerGuarantee = (document.getElementById('settingFooterGuarantee')?.value || '').trim();
 
       const headerEl = document.getElementById('mockupHeader');
       if (headerEl) {
@@ -4985,6 +5033,7 @@
         settingsLoaded = true;
       }
     }
+    const loadMerchantSettings = fetchGatewaySettings;
 
     function renderActiveVpaCallout(activeData) {
       const idEl = document.getElementById('activeVpaIdDisplay');
@@ -5101,30 +5150,30 @@
 
     async function saveMerchantBrandingAndToggles() {
       settingsLoaded = true;
-      const businessName = document.getElementById('settingBusinessName')?.value.trim() || '';
-      const appName = document.getElementById('settingAppName')?.value.trim() || '{{APP_NAME}}' || 'YOUPI PG';
-      const logoUrl = document.getElementById('settingLogoUrl')?.value.trim() || '';
-      const primaryColor = document.getElementById('settingPrimaryColor')?.value.trim() || '#0b63e5';
-      const sidebarNotice = document.getElementById('settingSidebarNotice')?.value.trim() || (currentMerchantBranding?.sidebarNotice || '');
-      const footerGuarantee = document.getElementById('settingFooterGuarantee')?.value.trim() || (currentMerchantBranding?.footerGuarantee || '');
-      const counterInstructions = document.getElementById('settingCounterInstructions')?.value.trim() || '';
-      const webhookUrl = document.getElementById('settingWebhookUrl')?.value.trim() || '';
+      const businessName = (document.getElementById('settingBusinessName')?.value || '').trim();
+      const appName = (document.getElementById('settingAppName')?.value || '').trim() || '{{APP_NAME}}' || 'YOUPI PG';
+      const logoUrl = (document.getElementById('settingLogoUrl')?.value || '').trim();
+      const primaryColor = (document.getElementById('settingPrimaryColor')?.value || '').trim() || '#0b63e5';
+      const sidebarNotice = (document.getElementById('settingSidebarNotice')?.value || '').trim() || (currentMerchantBranding?.sidebarNotice || '');
+      const footerGuarantee = (document.getElementById('settingFooterGuarantee')?.value || '').trim() || (currentMerchantBranding?.footerGuarantee || '');
+      const counterInstructions = (document.getElementById('settingCounterInstructions')?.value || '').trim();
+      const webhookUrl = (document.getElementById('settingWebhookUrl')?.value || '').trim();
 
       const supportEmails = (document.getElementById('settingSupportEmails')?.value || '').split(/[,\n]+/).map(s => s.trim()).filter(Boolean);
       const supportMobiles = (document.getElementById('settingSupportMobiles')?.value || '').split(/[,\n]+/).map(s => s.trim()).filter(Boolean);
-      const privacyPolicyUrl = document.getElementById('settingPrivacyPolicyUrl')?.value.trim() || '';
+      const privacyPolicyUrl = (document.getElementById('settingPrivacyPolicyUrl')?.value || '').trim();
 
       const headerTheme = document.getElementById('settingHeaderTheme')?.value || 'gradient';
       const trustBadgeText = (document.getElementById('settingTrustBadgeText')?.value || '').trim() || (currentMerchantBranding?.trustBadgeText || '');
       const hideTrustBadge = document.getElementById('settingHideTrustBadge')?.type === 'checkbox'
         ? (document.getElementById('settingHideTrustBadge')?.checked || false)
         : Boolean(currentMerchantBranding?.hideTrustBadge);
-      const subbannerText = document.getElementById('settingSubbannerText')?.value.trim() || '';
+      const subbannerText = (document.getElementById('settingSubbannerText')?.value || '').trim();
       const hideSubbanner = document.getElementById('settingHideSubbanner')?.checked || false;
       const hideTimeSavingBanner = document.getElementById('settingHideTimeSavingBanner')?.checked || false;
       const hidePoweredBy = document.getElementById('settingHidePoweredBy')?.checked || false;
-      const cardCounterInstructions = document.getElementById('settingCardCounterInstructions')?.value.trim() || '';
-      const termsUrl = document.getElementById('settingTermsUrl')?.value.trim() || '';
+      const cardCounterInstructions = (document.getElementById('settingCardCounterInstructions')?.value || '').trim();
+      const termsUrl = (document.getElementById('settingTermsUrl')?.value || '').trim();
 
       const codChecked = document.getElementById('toggleMethodCod')?.checked ?? true;
       const cashChecked = document.getElementById('toggleMethodCash')?.checked ?? true;
@@ -7763,7 +7812,7 @@
       if (!merchantId || merchantId === currentMerchantId) return;
       currentMerchantId = merchantId;
       showAdminToast(`Switched store context.`, true);
-      await loadMerchantSettings();
+      await fetchGatewaySettings();
       renderMerchantCredentials();
     }
 
@@ -7773,11 +7822,11 @@
       const snippetEl = document.getElementById('settingIntegrationSnippet');
       if (idEl) idEl.value = currentMerchantId || '';
 
-      const currentM = merchantsList.find(m => m.id === currentMerchantId);
+      const currentM = (merchantsList || []).find(m => m.id === currentMerchantId);
       const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       const checkoutHost = isLocalhost ? `${window.location.protocol}//${window.location.hostname}:7000` : window.location.origin;
       const effectiveKey = (mData && mData.apiKey) ? mData.apiKey : currentMerchantId;
-      const snippet = `<script src="${checkoutHost}/youpi.js" data-youpi-key="${effectiveKey}" data-currency="INR"></script>`;
+      const snippet = `<script src="${checkoutHost}/youpi.js" data-youpi-key="${effectiveKey}" data-currency="INR"><` + `/script>`;
       if (snippetEl) snippetEl.value = snippet;
 
       if (keyEl) {
@@ -7849,7 +7898,7 @@
         await fetchMerchantsList();
         currentMerchantId = data.merchant.id;
         renderMerchantSelector();
-        await loadMerchantSettings();
+        await fetchGatewaySettings();
         renderMerchantCredentials(data.merchant);
       } catch (err) {
         showAdminToast(`Network error: ${err.message}`, false);
@@ -7901,6 +7950,22 @@
     }
 
     // --- INITIALIZATION ---
+    // Ensure all main navigation buttons always trigger reliably
+    [
+      { id: 'mainNavOperations', sec: 'operations' },
+      { id: 'mainNavStoreSettings', sec: 'storeSettings' },
+      { id: 'mainNavDeveloperHub', sec: 'developerHub' },
+      { id: 'mainNavSecurity', sec: 'security' }
+    ].forEach(({ id, sec }) => {
+      const b = document.getElementById(id);
+      if (b) {
+        b.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          switchSection(sec);
+        });
+      }
+    });
+
     const validSections = ['operations', 'storeSettings', 'developerHub', 'security'];
     const hashSec = (window.location.hash || '').replace('#', '').trim();
     const searchSec = new URLSearchParams(window.location.search).get('section');
